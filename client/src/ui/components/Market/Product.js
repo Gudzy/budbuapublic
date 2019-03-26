@@ -3,21 +3,34 @@ import _ from 'lodash';
 import { connect } from 'react-redux';
 import axios from 'axios';
 import firebase from 'firebase/app';
+import Countdown from 'react-countdown-now';
 
-import { authenticate } from "./../../../store/actions/auth";
+import { authenticate } from './../../../store/actions/auth';
 import CLOUD_URL from './../../../url';
 import Spinner from './../Spinner/Spinner';
-import BudImage from './../../../eksempel-bilde-300x300.png';
-
+import GoogleMapsContainer from '../GoogleMaps/GoogleMapsContainer';
+import BudImage from './../../../assets/img/eksempel-bilde-300x300.png';
 
 import Card from '@material-ui/core/Card';
 import CardActionArea from '@material-ui/core/CardActionArea';
 import CardMedia from '@material-ui/core/CardMedia';
+import CardHeader from '@material-ui/core/CardHeader';
+import CardContent from '@material-ui/core/CardContent';
 import IconLabelButtons from './../Buttons/IconLabelButtons';
 import TextField from '@material-ui/core/TextField';
-import Grid from '@material-ui/core/Grid';
+import Image from 'material-ui-image';
+import Modal from '@material-ui/core/Modal';
 
-class Product extends Component{
+
+import CardActions from '@material-ui/core/CardActions';
+import Avatar from '@material-ui/core/Avatar';
+import IconButton from '@material-ui/core/IconButton';
+import Typography from '@material-ui/core/Typography';
+import red from '@material-ui/core/colors/red';
+import ExpandMoreIcon from '@material-ui/icons/AddLocationSharp';
+import MoreVertIcon from '@material-ui/icons/Report';
+
+export class Product extends Component{
     state = {
         fetching: false,
         error: false,
@@ -27,16 +40,19 @@ class Product extends Component{
         sellerUid: '',
         resdescription: 'Beskriv problemet',
         biddescription: 'Oppgi ditt bud - Må minst øke med 3%',
-        newBid: ''
+        newBid: '', 
+        expanded: true,
     }
 
     componentDidMount = async () => {
         await this.fetchProduct();
+        
     }
 
     fetchProduct = async () => {
         //Selected product's firebase document id:
         let id = window.location.search.replace('?','');
+        const refTime = await new Date(2018,1,1).getTime();
         try {
             this.setState({fetching: true });
             let res = await axios.post(CLOUD_URL + 'getProduct',{
@@ -44,7 +60,19 @@ class Product extends Component{
             });
             let product = res.data;
             let newBid = product.currentBid > 0 ? product.currentBid * 1.03 : product.startPrice;
-            this.setState({ product, fetching: false, newBid});
+            const date = await new Date(refTime + product.finishTimeInt).toLocaleDateString();
+            const time = product.finishTime;
+            const sec = await new Date(product.finishDate + "T" + product.finishTime);
+            const now = await new Date();
+            product['date'] = date;
+            product['time'] = time;
+            product['sec'] = sec.valueOf() - now.valueOf();
+            this.setState({ product, fetching: false, newBid });
+            
+            const ny = await new Date(refTime + product.finishTimeInt);
+            ny.setDate(ny.getDate() +2);
+            console.log(ny.toLocaleString());
+            
         } catch(err) {
             this.setState({error: true, fetching: false});
         }
@@ -53,7 +81,7 @@ class Product extends Component{
     makeBid = async () => {
         const { newBid } = this.state;
         const productId = window.location.pathname.split('/').filter(function(el){ return !!el; }).pop();
-        let buyerUid = firebase.auth().currentUser.uid;        
+        let buyerUid = firebase.auth().currentUser.uid;
         if( newBid && buyerUid && productId ) {
           try {
             this.setState({fetching: true});
@@ -104,12 +132,31 @@ class Product extends Component{
         this.setState({bid: !this.state.bid})
     }
 
+    getModalStyle() {
+        const top = 10 ;
+      
+        return {
+          margin: '0 auto',
+          maxWidth: 340,
+          position: 'relative',
+          marginTop: 100
+        };
+      }
+
     renderReporting() {
       const { description, fetching, resdescription } = this.state;
       return(
-          <div style={styles.container}>
+          <Modal 
+            aria-labelledby="simple-modal-title"
+            aria-describedby="simple-modal-description"
+            open={this.state.report}
+            onClose={this.report}>
+            <div className={modalStyles.paper} style={this.getModalStyle()}>
           <Card style={styles.inputcard} raised>
-                  <h1>Rapportering</h1>
+            <CardContent>
+            <h1>Rapporter</h1>
+            </CardContent>
+                  
               <div style={styles.inputField3}>
                   <TextField
                       required
@@ -118,13 +165,16 @@ class Product extends Component{
                       label="Beskrivelse"
                       type="String"
                       value={description}
+                      multiline
+                      rowsMax="10"
+                      rows="10"
                       onChange={this.handleChange}
                       helperText = {resdescription}
                   />
               </div>
               {fetching ? <Spinner/> :
               <div>
-                  <IconLabelButtons type="Rapporter" action={this.handleReporting} disabled={description.length < 1}/>
+                  <IconLabelButtons type="Send" action={this.handleReporting} disabled={description.length < 1}/>
                   <IconLabelButtons type="Avbryt" action={this.report} />
               </div>
               }
@@ -133,6 +183,7 @@ class Product extends Component{
               </CardActionArea>
               </Card>
           </div>
+          </Modal>
       )
     }
 
@@ -140,7 +191,12 @@ class Product extends Component{
     renderBid() {
         const { fetching, biddescription, newBid, product } = this.state;
         return(
-            <div style={styles.container}>
+            <Modal 
+            aria-labelledby="simple-modal-title"
+            aria-describedby="simple-modal-description"
+            open={this.state.bid}
+            onClose={this.bid}>
+            <div className={modalStyles.paper} style={this.getModalStyle()}>
             <Card style={styles.inputcard} raised>
                     <h1>By på varen</h1>
                     <h3> {"Nåværende bud: " + product.currentBid.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,') }</h3>
@@ -167,49 +223,88 @@ class Product extends Component{
                         <CardMedia style={styles.media} image="https://imgur.com/Lr3KJIl.jpg" title="Budbua"/>
                 </CardActionArea>
                 </Card>
-            </div>
+          </div>
+          </Modal>
+
+
+
+
+
+            
         )
       }
 
-    renderProduct = () => {
+      renderProduct = () => {
+        
         const { isAuthenticated } = this.props;
-        const { product } = this.state;
-        const refTime = new Date(2018,1,1).getTime();
+        const { product, expanded } = this.state;
+        
+        
+        /** 
+        geocoder.geocode('29 champs elysée paris', function(err, res) {
+            console.log(res);
+        });*/
         return (
             <div>
             {product && (
                 <div>
                 <Card style={styles.card}>
-                    <Grid container wrap="nowrap">
-                    <div>
-                      <Grid item style={styles.grid2}>
-                      <CardActionArea style={styles.actionArea} >
-                      <h1 style={styles.text3}>{product.title}</h1>
-                        <section className="image" id="html">
-                        <img style={styles.image} src={product.imageConverted} alt={BudImage}/>
-                        </section>
-                      </CardActionArea>
-                      </Grid>
-                      </div>
+                    <CardHeader
+                        avatar={
+                            <Avatar aria-label="Recipe" className={styles.avatar}>
+                                {product.title[0]}
+                            </Avatar>
+                        }
+                        action={
+                            <IconButton onClick={this.report}>
+                            <MoreVertIcon/>
+                            </IconButton>
+                        }
+                        title={product.title}
+                        subheader={"📅 " + product.date  + "  ⌚ " + product.time }
+                    />
+                    <CardActionArea>
+                        <Image src={product.imageConverted} imageStyle={{paddingTop: 10, display: 'block', marginLeft: 'auto', marginRight: 'auto', width: '100%'}} alt={BudImage}></Image>
+                    </CardActionArea>
+                   
+                    <CardContent style={styles.content}>
+                        <div style={styles.details}>
+                        <Typography component="h5" variant="h6">Startpris: </Typography>
+                        <Typography  variant="subtitle1" color="textSecondary">{product.startPrice.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,') + " kr"}</Typography>
+                        <Typography component="h5" variant="h6">Nåværende bud: </Typography>
+                        <Typography  variant="subtitle1" color="textSecondary">{product.currentBid.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,') + " kr"}</Typography>
+                        </div>
+                        <div>
+                        <Typography component="h5" variant="h6">E-post: </Typography>
+                            <Typography variant="subtitle1" color="textSecondary">
+                                {"📧 " + product.sellerEmail} 
+                            </Typography>
+                            <Typography component="h5" variant="h6">Telefon: </Typography>
+                            <Typography variant="subtitle1" color="textSecondary">
+                                {"📱 " + product.sellerUid} 
+                            </Typography>
+                        </div>
+                    </CardContent>  
+                    <IconLabelButtons type="Legg inn bud" action={this.bid} disabled={!isAuthenticated}/>
+                    <Countdown
+    date={Date.now() + product.sec}
+    renderer={renderer}
+    precision={15}
 
-                      <Grid style={styles.grid}>
-                        <h3>Startpris:</h3>
-                        <h3>{product.startPrice.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,') + " kr"}</h3>
-                        <br />
-                        <h3>Nåværende bud:</h3>
-                        <h3>{product.currentBid.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,') + " kr"}</h3>
-                        <br />
-                        <h3>Slutt-tidspunkt:</h3>
-                        <h3> {"📅" + new Date(refTime +product.finishTimeInt).toDateString().split('T')[0]}</h3>
-                        <h3> {"⌚" + new Date(refTime +product.finishTimeInt).toLocaleTimeString()}</h3>
-                      </Grid>
-                    </Grid>
-                        <h3 style={styles.text3}>Kontakt selger:</h3>
-                        <h3 style={styles.text3}>Tlf: {product.sellerUid}</h3>
-                        <h3 style={styles.text3}>E-post: {product.sellerEmail} </h3><div style={styles.text4}>
-                        <IconLabelButtons type="Legg inn bud" action={this.bid} disabled={!isAuthenticated}/>
-                        <IconLabelButtons type="Rapporter selger" action={this.report} disabled={!isAuthenticated}/>
-                    </div>   
+  />
+                    <CardActions className={styles.actions} disableActionSpacing>
+       
+        <IconButton
+          aria-expanded={expanded}
+          aria-label="Show more"
+        >
+        
+          <ExpandMoreIcon />
+        </IconButton>
+        <Typography variant="subtitle1" color="textSecondary">{product.location}</Typography>
+        
+      </CardActions>
+                <GoogleMapsContainer lat={product.lat} lng={product.lng} title={product.title} sellerUid={product.sellerUid} adress={product.location}></GoogleMapsContainer>
                 </Card>
                 </div>
             )}
@@ -220,30 +315,113 @@ class Product extends Component{
 
     render() {
         const { fetching, report, bid } = this.state;
+     
         return(
             <div>
                 {fetching ? <Spinner/>
-                : (report ? this.renderReporting() : bid ? this.renderBid() : this.renderProduct())}
+                : this.renderProduct()}
+                {report ? this.renderReporting() : ''}
+                {bid ? this.renderBid() : ''}
             </div>
         );
     }
 }
 
+const renderer = ({ days, hours, minutes, seconds, completed }) => {
+    if (completed) {
+      // Render a completed state
+      return <Completionist />;
+    } else {
+      // Render a countdown
+      return <div className="Countdown">
+      <span className="Countdown-col">
+        <span className="Countdown-col-element">
+            <strong>{days}</strong>
+            <span>{days === 1 ? 'Day' : 'Days'}</span>
+        </span>
+      </span>
+
+      <span className="Countdown-col">
+        <span className="Countdown-col-element">
+          <strong>{hours}</strong>
+          <span>Hours</span>
+        </span>
+      </span>
+
+
+      <span className="Countdown-col">
+        <span className="Countdown-col-element">
+          <strong>{minutes}</strong>
+          <span>Min</span>
+        </span>
+      </span>
+
+      <span className="Countdown-col">
+        <span className="Countdown-col-element">
+          <strong>{seconds}</strong>
+          <span>Sec</span>
+        </span>
+      </span>
+    </div>
+      
+      
+      
+    }
+  };
+  const Completionist = () => <span>Time out</span>;
+  const modalStyles = theme => ({
+    paper: {
+      position: 'absolute',
+      width: theme.spacing.unit * 50,
+      backgroundColor: theme.palette.background.paper,
+      boxShadow: theme.shadows[5],
+      padding: theme.spacing.unit * 4,
+      outline: 'none',
+    },
+  });
+
 const styles = {
+    paper: {
+        position: 'absolute',
+        outlined: 'none',
+        },
    StarIcon: {
        color: 'gold'
    },
    card: {
        maxWidth: 600,
        margin: 'auto',
-       maxHeight: 900,
-       marginTop: 20
+       marginTop: 20,
+   },
+   content: {
+       display: 'flex',
 
    },
+   details: {
+    flex: '0.5  auto',
+   },
+ 
+  contact: {
+    display: 'flex',
+  },
+    media: {
+        height: 200,
+    },
+    actions: {
+        display: 'flex',
+    },
+
+    expandOpen: {
+        transform: 'rotate(180deg)',
+    },
+    avatar: {
+        backgroundColor: red[500],
+    },
    inputcard: {
     maxWidth: 400,
     margin: 'auto',
-    height: 550
+    height: 550,
+    textAlign: 'center'
     },
    container: {
        padding: 10
@@ -310,6 +488,7 @@ const styles = {
        width: 300,
        paddingTop: 40,
        right: '20%',
+       paddingBottom: 30,
      },
 
      grid2: {
@@ -325,3 +504,5 @@ const mapStateToProps = state => ({
 });
 
 export default connect( mapStateToProps, { authenticate } )( Product );
+
+

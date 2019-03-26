@@ -27,7 +27,7 @@ function IconLabelButtons(props) {
     case 'Send':
       return (
         <Button variant="contained" color="secondary" className={classes.button} onClick={action} disabled={disabled}>
-          Submit
+          Send
           <SendIcon className={classes.rightIcon} />
         </Button>
       );
@@ -38,10 +38,10 @@ function IconLabelButtons(props) {
           <SendIcon className={classes.rightIcon} />
         </Button>
       );
-    case 'Delete':
+    case 'Avbryt':
       return(
-        <Button variant="contained" color="secondary" className={classes.button} onClick={action}>
-          Delete
+        <Button variant="contained" color="primary" className={classes.button} onClick={action}>
+          Avbryt
           <DeleteIcon className={classes.rightIcon} />
         </Button>
       );

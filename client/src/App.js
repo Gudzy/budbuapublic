@@ -2,17 +2,17 @@ import React, { Component } from 'react';
 import _ from 'lodash';
 import { connect } from 'react-redux';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
-import firebase from 'firebase/app';
+import firebase from './Firebase';
 
 import { authenticate } from './store/actions/auth';
 import AppBar from './ui/components/AppBar/AppBar';
 import menuRoutes from './routes';
 import './App.css';
-import firebaseConfig from './firebaseConfig';
+import config from './config';
+import Footer from './ui/components/Footer/Footer';
 
 class App extends Component {
   componentDidMount() {
-    firebase.initializeApp(firebaseConfig);
     this.props.authenticate();
   }
 
@@ -30,10 +30,9 @@ class App extends Component {
                 )}
               </div>
             ))}
-            
-            {isAuthenticated ? 'Online' : 'Offline'}
+            <Footer/>
         </div>
-  
+
       </Router>
     );
   }

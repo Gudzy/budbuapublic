@@ -1,5 +1,5 @@
 import axios from "axios";
-import firebase from 'firebase';
+import firebase from '../../Firebase';
 
 import { getToken, setToken } from "../localStorage";
 import CLOUD_URL from './../../url';
